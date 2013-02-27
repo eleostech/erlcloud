@@ -66,24 +66,24 @@ aws_request2_no_update(Method, Protocol, Host, Port, Path, Params, #aws_config{}
                                  undefined -> [];
                                  Token -> [{"SecurityToken", Token}]
                              end),
-    
+
     QueryToSign = erlcloud_http:make_query_string(QParams),
     RequestToSign = [string:to_upper(atom_to_list(Method)), $\n,
                      string:to_lower(Host), $\n, Path, $\n, QueryToSign],
     Signature = base64:encode(crypto:sha_mac(Config#aws_config.secret_access_key, RequestToSign)),
-    
+
     Query = [QueryToSign, "&Signature=", erlcloud_http:url_encode(Signature)],
-    
+
     case Protocol of
         undefined -> UProtocol = "https://";
         _ -> UProtocol = [Protocol, "://"]
     end,
-    
+
     case Port of
         undefined -> URL = [UProtocol, Host, Path];
         _ -> URL = [UProtocol, Host, $:, port_to_str(Port), Path]
     end,
-    
+
     Response =
         case Method of
             get ->
@@ -95,7 +95,7 @@ aws_request2_no_update(Method, Protocol, Host, Port, Path, Params, #aws_config{}
                                  Method,
                                  list_to_binary(Query))
         end,
-    
+
     http_body(Response).
 
 param_list([], _Key) -> [];
