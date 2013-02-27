@@ -88,11 +88,12 @@ aws_request2_no_update(Method, Protocol, Host, Port, Path, Params, #aws_config{}
         case Method of
             get ->
                 Req = lists:flatten([URL, $?, Query]),
-                httpc:request(Req);
+                ibrowse:send_req(Req, [], get);
             _ ->
-                httpc:request(Method,
-                              {lists:flatten(URL), [], "application/x-www-form-urlencoded; charset=utf-8",
-                               list_to_binary(Query)}, [], [])
+                ibrowse:send_req(lists:flatten(URL),
+                                 [{"Content-Type", "application/x-www-form-urlencoded; charset=utf-8"}],
+                                 Method,
+                                 list_to_binary(Query))
         end,
     
     http_body(Response).
@@ -145,14 +146,15 @@ update_config(#aws_config{access_key_id = KeyId} = Config)
 update_config(#aws_config{} = Config) ->
     %% AccessKey is not set. Try to read from role metadata.
     %% First get the list of roles
-    case http_body(httpc:request("http://169.254.169.254/latest/meta-data/iam/security-credentials/")) of
+    case http_body(ibrowse:send_req("http://169.254.169.254/latest/meta-data/iam/security-credentials/", [], get)) of
         {error, Reason} ->
             {error, Reason};
         {ok, Body} ->
             %% Always use the first role
             Role = string:sub_word(Body, 1, $\n),
-            case http_body(httpc:request(
-                             "http://169.254.169.254/latest/meta-data/iam/security-credentials/" ++ Role)) of
+            case http_body(ibrowse:send_req(
+                             "http://169.254.169.254/latest/meta-data/iam/security-credentials/" ++ Role,
+                             [], get)) of
                 {error, Reason} ->
                     {error, Reason};
                 {ok, Json} ->
@@ -169,8 +171,8 @@ port_to_str(Port) when is_integer(Port) ->
 port_to_str(Port) when is_list(Port) ->
     Port.
 
--spec http_body({ok, tuple()} | {error, term()}) -> {ok, string()} | {error, tuple()}.
-%% Extract the body and do error handling on the return of a httpc:request call.
+-spec http_body({ok, string(), list(), string()} | {error, term()}) -> {ok, string()} | {error, tuple()}.
+%% Extract the body and do error handling on the return of a ibrowse call.
 http_body(Return) ->
     case http_headers_body(Return) of
         {ok, {_, Body}} ->
@@ -179,12 +181,12 @@ http_body(Return) ->
             {error, Reason}
     end.
 
--spec http_headers_body({ok, tuple()} | {error, term()}) -> {ok, {http:headers(), string()}} | {error, tuple()}.
-%% Extract the headers and body and do error handling on the return of a httpc:request call.
-http_headers_body({ok, {{_HTTPVer, OKStatus, _StatusLine}, Headers, Body}}) 
-  when OKStatus >= 200, OKStatus =< 299 ->
+-spec http_headers_body({ok, string(), list(), string()} | {error, term()}) -> {ok, {http:headers(), string()}} | {error, tuple()}.
+%% Extract the headers and body and do error handling on the return of an ibrowse call.
+http_headers_body({ok, Status, Headers, Body})
+  when Status >= "200", Status =< "299" ->
     {ok, {Headers, Body}};
-http_headers_body({ok, {{_HTTPVer, Status, StatusLine}, _Headers, Body}}) ->
-    {error, {http_error, Status, StatusLine, Body}};
+http_headers_body({ok, Status, _Headers, Body}) ->
+    {error, {http_error, Status, "", Body}};
 http_headers_body({error, Reason}) ->
     {error, {socket_error, Reason}}.

@@ -13,6 +13,7 @@
                   ssl,
                   xmerl,
                   inets,
+                  ibrowse,
                   jsx]},
   {modules, []},
   {env, []}

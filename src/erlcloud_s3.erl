@@ -765,9 +765,10 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, POSTData,
                                 end
                                ]),
     Response = case Method of
-                   get -> httpc:request(Method, {RequestURI, RequestHeaders}, [], []);
-                   delete -> httpc:request(Method, {RequestURI, RequestHeaders}, [], []);
-                   _ -> httpc:request(Method, {RequestURI, RequestHeaders, ContentType, Body}, [], [])
+                   get -> ibrowse:send_req(RequestURI, RequestHeaders, Method);
+                   delete -> ibrowse:send_req(RequestURI, RequestHeaders, Method);
+                   _ -> ibrowse:send_req(RequestURI, RequestHeaders,
+                                         Method, Body, [{content_type, ContentType}])
                end,
     erlcloud_aws:http_headers_body(Response).
 
