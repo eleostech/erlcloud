@@ -767,8 +767,9 @@ s3_request2_no_update(Config, Method, Host, Path, Subresource, Params, POSTData,
     Response = case Method of
                    get -> ibrowse:send_req(RequestURI, RequestHeaders, Method);
                    delete -> ibrowse:send_req(RequestURI, RequestHeaders, Method);
-                   _ -> ibrowse:send_req(RequestURI, RequestHeaders,
-                                         Method, Body, [{content_type, ContentType}])
+                   _ -> ibrowse:send_req(RequestURI,
+                                         [{"Content-Type", ContentType}|RequestHeaders],
+                                         Method, Body)
                end,
     erlcloud_aws:http_headers_body(Response).
 
@@ -785,7 +786,9 @@ make_authorization(Config, Method, ContentMD5, ContentType, Date, AmzHeaders,
                     Resource, case Subresource of "" -> ""; _ -> [$?, Subresource] end
                    ],
     Signature = base64:encode(crypto:sha_mac(Config#aws_config.secret_access_key, StringToSign)),
-    ["AWS ", Config#aws_config.access_key_id, $:, Signature].
+    %% We assume that Base64 will not produce characters that
+    %% are outside what binary_to_list can handle (by definition.)
+    binary_to_list(iolist_to_binary(["AWS ", Config#aws_config.access_key_id, $:, Signature])).
 
 default_config() -> erlcloud_aws:default_config().
 
