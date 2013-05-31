@@ -272,23 +272,30 @@ select_all(SelectExpression, ConsistentRead)
 select_all(SelectExpression, Config) ->
     select_all(SelectExpression, false, Config).
 
--spec select_all/3 :: (string(), boolean(), aws_config()) -> proplist().
+-spec select_all/3 :: (string(), boolean(), integer() | aws_config()) -> proplist().
+select_all(SelectExpression, ConsistentRead, LimitHint)
+  when is_integer(LimitHint) ->
+    select_all(SelectExpression, none, ConsistentRead, default_config(), LimitHint, [], []);
 select_all(SelectExpression, ConsistentRead, Config)
   when is_list(SelectExpression),
        is_boolean(ConsistentRead) ->
-    select_all(SelectExpression, none, ConsistentRead, Config, [], []).
+    select_all(SelectExpression, none, ConsistentRead, Config, unlimited, [], []).
 
--spec select_all/6 :: (string(), string() | none | done, boolean(),
-                       aws_config(), proplist(), proplist()) -> proplist().
-select_all(_, done, _, _, Items, Metadata) ->
+-spec select_all/7 :: (string(), string() | none | done, boolean(),
+                       aws_config(), integer(), proplist(), proplist()) -> proplist().
+select_all(_, done, _, _, _, Items, Metadata) ->
     [{items, Items}|Metadata];
-select_all(SelectExpression, NextToken, ConsistentRead, Config, Items, Metadata) ->
+select_all(_, _, _, _, LimitHint, Items, Metadata)
+  when LimitHint =/= unlimited andalso length(Items) >= LimitHint ->
+    [{items, Items}|Metadata];
+select_all(SelectExpression, NextToken, ConsistentRead,
+           Config, LimitHint, Items, Metadata) ->
     {NewItems, NewNextToken, NewMetadata} = sdb_select_request(SelectExpression,
                                                                NextToken,
                                                                ConsistentRead,
                                                                Config),
     select_all(SelectExpression, NewNextToken, ConsistentRead,
-               Config, Items ++ NewItems, Metadata ++ NewMetadata).
+               Config, LimitHint, Items ++ NewItems, Metadata ++ NewMetadata).
 
 sdb_select_request(SelectExpression, NextToken, ConsistentRead, Config) ->
     {Doc, Metadata} = sdb_request(Config, "Select",

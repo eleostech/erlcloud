@@ -100,6 +100,7 @@ select_all_test_() ->
       {test, ?MODULE, select_all_next_token},
       {test, ?MODULE, select_all_next_and_failure},
       {test, ?MODULE, select_all_two_results},
+      {test, ?MODULE, select_all_limit_hint},
       {test, ?MODULE, extract_token_test}
      ]}.
 
@@ -148,6 +149,14 @@ select_all_two_results() ->
     Result = erlcloud_sdb:select_all("select"),
     Items = proplists:get_value(items, Result),
     ?assertEqual(["item0", "item1"], [proplists:get_value(name, Item) || Item <- Items]).
+
+select_all_limit_hint() ->
+    expect_chain([single_result_and_token_response(),
+                  single_result_and_token_response()]),
+
+    Result = erlcloud_sdb:select_all("select", true, 1),
+    Items = proplists:get_value(items, Result),
+    ?assertEqual(["item0"], [proplists:get_value(name, Item) || Item <- Items]).
 
 extract_token_test() ->
     ?assertEqual(next_token(), erlcloud_sdb:extract_token(parse_document(only_token_response_body()))),
