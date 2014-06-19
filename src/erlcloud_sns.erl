@@ -18,6 +18,9 @@
          get_endpoint_attributes/1,
          get_endpoint_attributes/2,
          get_endpoint_attributes/3,
+         get_subscription_attributes/1,
+         get_subscription_attributes/2,
+         get_subscription_attributes/3,
          publish_to_topic/2, publish_to_topic/3, publish_to_topic/4,
          publish_to_topic/5, publish_to_target/2, publish_to_target/3,
          publish_to_target/4, publish_to_target/5, publish/5,
@@ -45,6 +48,16 @@
                                 | token.
 
 -type sns_endpoint() :: [{arn, string()} | {attributes, [{arn|sns_endpoint_attribute(), string()}]}].
+
+-type sns_subscription_attribute() :: subscription_arn
+                                    | topic_arn
+                                    | endpoint
+                                    | owner
+                                    | confirmation_was_authenticated
+                                    | delivery_policy
+                                    | effective_delivery_policy.
+
+-type sns_subscription() :: [{arn, string()} | {attributes, [{arn|sns_subscription_attribute(), string()}]}].
 
 -type sns_permission() :: all
                         | add_permission
@@ -228,6 +241,27 @@ get_endpoint_attributes(EndpointArn, Config) ->
     [{arn, EndpointArn} | Decoded].
 get_endpoint_attributes(EndpointArn, AccessKeyID, SecretAccessKey) ->
     get_endpoint_attributes(EndpointArn, new_config(AccessKeyID, SecretAccessKey)).
+
+
+
+-spec get_subscription_attributes/1 :: (string()) -> sns_subscription().
+-spec get_subscription_attributes/2 :: (string(), aws_config()) -> sns_subscription().
+-spec get_subscription_attributes/3 :: (string(), string(), string()) -> sns_subscription().
+
+get_subscription_attributes(SubscriptionArn) ->
+    get_subscription_attributes(SubscriptionArn, default_config()).
+get_subscription_attributes(SubscriptionArn, Config) ->
+    Params = [{"SubscriptionArn", SubscriptionArn}],
+    Doc = sns_xml_request(Config, "GetSubscriptionAttributes", Params),
+    Decoded =
+        erlcloud_xml:decode(
+            [{attributes, "GetSubscriptionAttributesResult/Attributes/entry",
+                fun extract_attribute/1
+             }],
+            Doc),
+    [{arn, SubscriptionArn} | Decoded].
+get_subscription_attributes(SubscriptionArn, AccessKeyID, SecretAccessKey) ->
+    get_subscription_attributes(SubscriptionArn, new_config(AccessKeyID, SecretAccessKey)).
 
 
 
